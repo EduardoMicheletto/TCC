@@ -1,11 +1,4 @@
-# Instalar as bibliotecas necessárias
-# pip install selenium
-# pip install webdriver-manager
-# pip install requests
-# pip install streamlit
-# pip install pdfplumber
-# pip install python-gemini-api
-
+# Importar bibliotecas necessárias
 from selenium import webdriver
 from webdriver_manager.chrome import ChromeDriverManager
 from selenium.webdriver.chrome.service import Service
@@ -13,7 +6,10 @@ from time import sleep
 import requests
 import streamlit as st
 import pdfplumber
-from gemini import GeminiClient
+import google.generativeai as genai
+
+
+api_key = 'AIzaSyBu2R95Xa8xUBhDxcgC01xem0ZdRTtc7U8'
 
 def setup_webdriver():
     """Configura e retorna o navegador Selenium."""
@@ -64,33 +60,44 @@ def extract_text(pdf_path):
     
     return text
 
-def analyze_pl(pdf_path, api_key):
-    """Analisa o PDF utilizando o modelo Gemini e retorna a resposta."""
-    text = extract_text(pdf_path)
-    client = GeminiClient(api_key)
-    
-    prompt = "Forneça um resumo conciso do Projeto de Lei (PL), destacando seus principais objetivos e intenções. Em seguida, analise de forma detalhada os potenciais impactos dessa lei na vida dos cidadãos brasileiros, abordando tanto os aspectos positivos quanto os negativos. Considere as possíveis consequências de curto e longo prazo, e explique como as diferentes classes sociais — baixa, média e alta — serão afetadas. Por fim, explore se há implicações sociais que possam intensificar a desigualdade ou provocar mudanças significativas no tecido social do país."
-    
-    response = client.query(text, prompt=prompt)
-    return response['text']
+def analyze_pl(text):
 
-def main():
-    """Função principal que integra todas as etapas."""
-    st.title("Análise de Projetos de Lei do Senado")
+    prompt = """
+    Forneça um resumo conciso do Projeto de Lei (PL), destacando seus principais objetivos e intenções. 
+    Em seguida, analise de forma detalhada os potenciais impactos dessa lei na vida dos cidadãos brasileiros, 
+    abordando tanto os aspectos positivos quanto os negativos. Considere as possíveis consequências de curto 
+    e longo prazo, e explique como as diferentes classes sociais — baixa, média e alta — serão afetadas. 
+    Por fim, explore se há implicações sociais que possam intensificar a desigualdade ou provocar mudanças 
+    significativas no tecido social do país. Sobre a seguinte: 
+    """ + text
     
-    api_key = 'AIzaSyBu2R95Xa8xUBhDxcgC01xem0ZdRTtc7U8'
-    
-    # Extrair URL do PDF usando Selenium
-    navegador = setup_webdriver()
-    pdf_url = get_pdf_url(navegador)
-    
-    # Baixar PDF
-    pdf_filename = "downloaded_pl.pdf"
-    download_pdf(pdf_url, pdf_filename)
-    
-    # Analisar PL
-    answer = analyze_pl(pdf_filename, api_key)
-    st.write(answer)
+    genai.configure(api_key=api_key)
 
-if __name__ == "__main__":
-    main()
+    model = genai.GenerativeModel('gemini-1.5-flash')
+
+    response = model.generate_content(prompt)
+    print()
+    
+    # Retorna o texto gerado pela API
+    return response.text
+
+
+st.title("Análise de Projetos de Lei do Senado")
+
+# Extrair URL do PDF usando Selenium
+navegador = setup_webdriver()
+pdf_url = get_pdf_url(navegador)
+
+# Baixar PDF
+pdf_filename = "downloaded_pl.pdf"
+download_pdf(pdf_url, pdf_filename)
+
+# Extrair texto do PDF
+text = extract_text(pdf_filename)
+
+# Analisar PL usando a nova API do Google Gemini
+answer = analyze_pl(text)
+st.write(answer)
+
+
+
